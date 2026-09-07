@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Weather &amp; Air Quality Station</title>
+<style>
+  :root {
+    --bg: #11161A;
+    --panel: #1A2126;
+    --grid: #2B343A;
+    --text: #E7ECEE;
+    --muted: #7E8B92;
+    --temp: #E0954A;
+    --humidity: #4FB3C4;
+    --online: #4CAF6D;
+    --offline: #C4544F;
+    --nodata: #7E8B92;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Inter", "Segoe UI", system-ui, sans-serif;
+    min-height: 100vh;
+  }
+
+  main {
+    max-width: 920px;
+    margin: 0 auto;
+    padding: 28px 20px 60px;
+  }
+
+  .topbar {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 22px;
+  }
+
+  .topbar h1 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin: 0;
+    letter-spacing: 0.01em;
+  }
+
+  select#stationSelect {
+    background: var(--panel);
+    color: var(--text);
+    border: 1px solid var(--grid);
+    border-radius: 4px;
+    padding: 6px 10px;
+    font-size: 0.95rem;
+  }
+
+  /* Station info strip */
+  .info-strip {
+    display: flex;
+    align-items: center;
+    gap: 22px;
+    flex-wrap: wrap;
+    background: var(--panel);
+    border: 1px solid var(--grid);
+    border-radius: 6px;
+    padding: 12px 18px;
+    margin-bottom: 18px;
+    font-size: 0.9rem;
+    color: var(--muted);
+  }
+
+  .info-strip strong { color: var(--text); }
+
+  .led {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 6px;
+    box-shadow: 0 0 6px currentColor;
+  }
+  .led.ONLINE  { background: var(--online);  color: var(--online); }
+  .led.OFFLINE { background: var(--offline); color: var(--offline); }
+  .led.NODATA  { background: var(--nodata);  color: var(--nodata); }
+
+  /* Readout tiles */
+  .readouts {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    margin-bottom: 26px;
+  }
+  @media (max-width: 640px) {
+    .readouts { grid-template-columns: 1fr; }
+  }
+
+  .tile {
+    background: var(--panel);
+    border-radius: 6px;
+    border-top: 3px solid var(--tile-accent, var(--grid));
+    padding: 18px 20px 16px;
+  }
+
+  .tile .label {
+    font-size: 0.78rem;
+    color: var(--muted);
+    margin-bottom: 10px;
+    font-weight: 500;
+  }
+
+  .tile .value {
+    font-family: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+    font-size: 2.4rem;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .tile .unit {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 0.95rem;
+    color: var(--muted);
+    margin-left: 4px;
+  }
+
+  /* Charts */
+  .chart-block {
+    background: var(--panel);
+    border-radius: 6px;
+    border: 1px solid var(--grid);
+    padding: 16px 18px 10px;
+    margin-bottom: 14px;
+  }
+
+  .chart-block h3 {
+    margin: 0 0 8px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--muted);
+  }
+
+  .chart-block svg { width: 100%; height: 130px; display: block; }
+
+  .empty-note {
+    color: var(--muted);
+    font-size: 0.85rem;
+    text-align: center;
+    padding: 30px 0;
+  }
+</style>
+</head>
+<body>
+<main>
+  <div class="topbar">
+    <h1>Weather &amp; Air Quality Station</h1>
+    <select id="stationSelect"></select>
+  </div>
+
+  <div class="info-strip">
+    <span><span class="led NODATA" id="statusLed"></span><strong id="statusText">—</strong></span>
+    <span>Station: <strong id="stationIdText">—</strong></span>
+    <span>Last update: <strong id="lastUpdateText">—</strong></span>
+  </div>
+
+  <div class="readouts">
+    <div class="tile" style="--tile-accent: var(--temp)">
+      <div class="label">Temperature</div>
+      <div><span class="value" id="tempValue">--</span><span class="unit">°C</span></div>
+    </div>
+    <div class="tile" style="--tile-accent: var(--humidity)">
+      <div class="label">Humidity</div>
+      <div><span class="value" id="humValue">--</span><span class="unit">%RH</span></div>
+    </div>
+    <div class="tile" id="pmTile" style="--tile-accent: var(--nodata)">
+      <div class="label">PM2.5</div>
+      <div><span class="value" id="pmValue">--</span><span class="unit">µg/m³</span></div>
+    </div>
+  </div>
+
+  <div class="chart-block">
+    <h3>Temperature vs Time</h3>
+    <svg id="chartTemp"></svg>
+  </div>
+  <div class="chart-block">
+    <h3>Humidity vs Time</h3>
+    <svg id="chartHum"></svg>
+  </div>
+  <div class="chart-block">
+    <h3>PM2.5 vs Time</h3>
+    <svg id="chartPm"></svg>
+  </div>
+</main>
+
+<script>
+const REFRESH_MS = 5000; // FR-18: refresh interval <= 5s
+const HISTORY_LIMIT = 50;
+let currentStation = null;
+
+function pmColor(pm) {
+  if (pm <= 12) return '#4CAF6D';   // good
+  if (pm <= 35) return '#C9B458';   // moderate
+  if (pm <= 55) return '#E0954A';   // unhealthy for sensitive groups
+  return '#C4544F';                 // unhealthy
+}
+
+function formatTime(iso) {
+  const d = new Date(iso);
+  return d.toLocaleTimeString('en-GB', { hour12: false });
+}
+
+async function loadStations() {
+  const res = await fetch('/api/stations');
+  const stations = await res.json();
+  const select = document.getElementById('stationSelect');
+  select.innerHTML = '';
+  if (stations.length === 0) {
+    const opt = document.createElement('option');
+    opt.textContent = 'No stations yet';
+    select.appendChild(opt);
+    return;
+  }
+  stations.forEach(s => {
+    const opt = document.createElement('option');
+    opt.value = s;
+    opt.textContent = s;
+    select.appendChild(opt);
+  });
+  currentStation = stations.includes(currentStation) ? currentStation : stations[0];
+  select.value = currentStation;
+  select.onchange = () => { currentStation = select.value; refresh(); };
+}
+
+async function refreshLatest() {
+  if (!currentStation) return;
+  const res = await fetch(`/api/stations/${currentStation}/latest`);
+  if (res.status === 404) {
+    document.getElementById('statusText').textContent = 'NO DATA';
+    document.getElementById('statusLed').className = 'led NODATA';
+    return;
+  }
+  const data = await res.json();
+  document.getElementById('stationIdText').textContent = data.station_id;
+  document.getElementById('lastUpdateText').textContent = formatTime(data.received_at);
+  document.getElementById('tempValue').textContent = data.temperature.toFixed(1);
+  document.getElementById('humValue').textContent = data.humidity.toFixed(1);
+  document.getElementById('pmValue').textContent = data.pm25.toFixed(1);
+
+  const led = document.getElementById('statusLed');
+  const statusClass = data.status === 'ONLINE' ? 'ONLINE' : (data.status === 'OFFLINE' ? 'OFFLINE' : 'NODATA');
+  led.className = 'led ' + statusClass;
+  document.getElementById('statusText').textContent = data.status;
+
+  document.getElementById('pmTile').style.setProperty('--tile-accent', pmColor(data.pm25));
+}
+
+function drawLineChart(svgId, points, color) {
+  const svg = document.getElementById(svgId);
+  const w = svg.clientWidth || 860;
+  const h = 130;
+  svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+  svg.innerHTML = '';
+
+  if (points.length === 0) {
+    svg.innerHTML = `<text x="${w/2}" y="${h/2}" fill="#7E8B92" font-size="12" text-anchor="middle">No data yet</text>`;
+    return;
+  }
+
+  const values = points.map(p => p.y);
+  const minY = Math.min(...values);
+  const maxY = Math.max(...values);
+  const pad = (maxY - minY) * 0.15 || 1;
+  const yMin = minY - pad, yMax = maxY + pad;
+
+  const marginL = 34, marginR = 10, marginT = 8, marginB = 18;
+  const plotW = w - marginL - marginR;
+  const plotH = h - marginT - marginB;
+
+  const xFor = i => marginL + (points.length === 1 ? plotW / 2 : (i / (points.length - 1)) * plotW);
+  const yFor = v => marginT + plotH - ((v - yMin) / (yMax - yMin)) * plotH;
+
+  let svgContent = '';
+
+  // graph-paper grid (horizontal hairlines)
+  for (let g = 0; g <= 3; g++) {
+    const gy = marginT + (plotH / 3) * g;
+    svgContent += `<line x1="${marginL}" y1="${gy}" x2="${w - marginR}" y2="${gy}" stroke="#2B343A" stroke-width="1"/>`;
+  }
+  // y-axis labels (min/max)
+  svgContent += `<text x="2" y="${yFor(maxY) + 4}" fill="#7E8B92" font-size="10">${maxY.toFixed(1)}</text>`;
+  svgContent += `<text x="2" y="${yFor(minY) + 4}" fill="#7E8B92" font-size="10">${minY.toFixed(1)}</text>`;
+
+  // line path
+  const path = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${xFor(i)} ${yFor(p.y)}`).join(' ');
+  svgContent += `<path d="${path}" fill="none" stroke="${color}" stroke-width="2"/>`;
+
+  // last point marker
+  const lastIdx = points.length - 1;
+  svgContent += `<circle cx="${xFor(lastIdx)}" cy="${yFor(points[lastIdx].y)}" r="3" fill="${color}"/>`;
+
+  svg.innerHTML = svgContent;
+}
+
+async function refreshHistory() {
+  if (!currentStation) return;
+  const res = await fetch(`/api/stations/${currentStation}/history?limit=${HISTORY_LIMIT}`);
+  const docs = await res.json();
+
+  if (docs.length === 0) {
+    ['chartTemp', 'chartHum', 'chartPm'].forEach(id => drawLineChart(id, [], '#888'));
+    return;
+  }
+
+  const tempPoints = docs.map((d, i) => ({ x: i, y: d.temperature }));
+  const humPoints  = docs.map((d, i) => ({ x: i, y: d.humidity }));
+  const pmPoints   = docs.map((d, i) => ({ x: i, y: d.pm25 }));
+
+  drawLineChart('chartTemp', tempPoints, getComputedStyle(document.documentElement).getPropertyValue('--temp'));
+  drawLineChart('chartHum', humPoints, getComputedStyle(document.documentElement).getPropertyValue('--humidity'));
+  drawLineChart('chartPm', pmPoints, pmColor(pmPoints[pmPoints.length - 1].y));
+}
+
+async function refresh() {
+  try {
+    await refreshLatest();
+    await refreshHistory();
+  } catch (e) {
+    console.error('Refresh error:', e);
+  }
+}
+
+async function init() {
+  await loadStations();
+  await refresh();
+  setInterval(async () => {
+    await loadStations(); // pick up new stations (FR-20) without reload
+    await refresh();
+  }, REFRESH_MS);
+}
+
+init();
+</script>
+</body>
+</html>

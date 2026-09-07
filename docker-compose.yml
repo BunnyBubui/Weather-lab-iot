@@ -1,0 +1,47 @@
+services:
+
+  mqtt:
+    image: eclipse-mosquitto:2
+    container_name: weather_mqtt
+    restart: unless-stopped
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./mqtt/mosquitto.conf:/mosquitto/config/mosquitto.conf
+      - mosquitto_data:/mosquitto/data
+      - mosquitto_log:/mosquitto/log
+
+  mongodb:
+    image: mongo:7
+    container_name: weather_mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"        # dev-only; see Section 35, keep internal-only in production
+    volumes:
+      - mongo_data:/data/db
+
+  collector:
+    build: ./collector
+    container_name: weather_collector
+    restart: unless-stopped
+    depends_on:
+      - mqtt
+      - mongodb
+    env_file:
+      - .env
+
+  webapp:
+    build: ./webapp
+    container_name: weather_webapp
+    restart: unless-stopped
+    depends_on:
+      - mongodb
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+
+volumes:
+  mosquitto_data:
+  mosquitto_log:
+  mongo_data:
