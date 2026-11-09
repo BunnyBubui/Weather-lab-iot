@@ -9,6 +9,7 @@ Sensors -> ESP32/ESP8266 -> MQTT -> Mosquitto -> Collector -> MongoDB -> FastAPI
 ## 1. Run the server side
 
 ```bash
+cp .env.example .env
 docker compose up -d --build
 ```
 
@@ -82,3 +83,7 @@ python tools/simulate_station.py --missing-field
 
 This configuration uses `allow_anonymous true` on Mosquitto and no MongoDB/API authentication —
 **acceptable for a lab environment only**. Do not expose these ports beyond your LAN.
+
+## Portfolio review
+
+See [portfolio notes](docs/PORTFOLIO.md) for scope, attribution and local configuration.

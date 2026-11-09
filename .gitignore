@@ -1,0 +1,29 @@
+
+
+# Local configuration and generated user data
+.env
+.env.*
+*.env
+!*.env.example
+!.env.example
+firebase_setting.json
+*service-account*.json
+*.keystore
+*.jks
+*.pem
+*.key
+node_modules/
+__pycache__/
+*.pyc
+.venv/
+venv/
+**/public/uploads/
+**/public/exports/
+
+# Build output
+dist/
+build/
+target/
+.expo/
+.gradle/
+*.log

@@ -5,7 +5,7 @@ services:
     container_name: weather_mqtt
     restart: unless-stopped
     ports:
-      - "1883:1883"
+      - "127.0.0.1:1883:1883"
     volumes:
       - ./mqtt/mosquitto.conf:/mosquitto/config/mosquitto.conf
       - mosquitto_data:/mosquitto/data
@@ -16,7 +16,7 @@ services:
     container_name: weather_mongodb
     restart: unless-stopped
     ports:
-      - "27017:27017"        # dev-only; see Section 35, keep internal-only in production
+      - "127.0.0.1:27017:27017"        # dev-only; see Section 35, keep internal-only in production
     volumes:
       - mongo_data:/data/db
 
